@@ -1,8 +1,6 @@
-use egui::{Response, Widget};
-use log::{error, info, warn};
+use log::info;
 use poll_promise::Promise;
-use reqwest::Method;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -10,7 +8,7 @@ use std::sync::{Arc, Mutex};
 pub struct App {
     // Example stuff:
     label: String,
-    #[serde(skip)] // This how you opt-out of serialization of a field
+    #[serde(skip)] // This how you opt out of serialization of a field
     value: f32,
 
     // Enables the separate logging window
@@ -18,13 +16,13 @@ pub struct App {
     logging_window: bool,
     edit_json: bool,
     #[serde(skip)]
-    http_connection: Arc<reqwest::blocking::Client>,
-
-    #[serde(skip)]
-    response: Option<Promise<reqwest::blocking::Response>>,
+    http_connection: Option<Arc<reqwest::Client>>,
 
     #[serde(skip)]
     body: Option<Promise<String>>,
+    // body: Option<Receiver<String>>,
+    #[serde(skip)]
+    isweb: bool,
 }
 
 impl Default for App {
@@ -34,11 +32,11 @@ impl Default for App {
             value: 2.7,
             logging_window: false,
             edit_json: false,
-            http_connection: reqwest::blocking::Client::new().into(),
+            http_connection: Some(Arc::new(reqwest::Client::new())),
             // http_result: None,
             // caddy_body: None,
-            response: Default::default(),
             body: Default::default(),
+            isweb: cfg!(target_arch = "wasm32"),
         }
     }
 }
@@ -62,18 +60,29 @@ impl App {
 impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.logging_window == true {
+        if !self.isweb && self.logging_window {
             egui::Window::new("Logs").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
 
         egui::Window::new("HTTP").show(ctx, |ui| {
             if ui.button("Refresh").clicked() {
-                self.body = crate::http::try_http::<String>(
-                    self.http_connection.get("https://httpbin.org/json"),
-                    move |res| res.text().unwrap(),
-                );
+                let request = self
+                    .http_connection
+                    .as_ref()
+                    .unwrap()
+                    .get("https://httpbin.org/json");
+                // self.body = crate::http::try_http::<String>(request, move |res| async {
+                //     res.text().await.unwrap()
+                // });
+
+                let (sender, promise) = Promise::new();
+                reqwest_cross::fetch(request, move |x| async {
+                    let v = x.unwrap().text().await.unwrap();
+                    sender.send(v)
+                });
+                self.body = Some(promise);
             }
-            ui.checkbox(&mut self.edit_json, "Enable editing");
+            // ui.checkbox(&mut self.edit_json, "Enable editing");
 
             // Clean this somehow, and make sure `ui.code_editor` can borrow mutably (might need to break into a different var)
             if let Some(promise) = &self.body {
@@ -86,12 +95,11 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
+            egui::widgets::global_theme_preference_switch(ui);
 
             egui::menu::bar(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
+                if !self.isweb {
                     ui.menu_button("File", |ui| {
                         if ui.button("Quit").clicked() {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -100,9 +108,10 @@ impl eframe::App for App {
                     ui.add_space(16.0);
                 }
                 ui.menu_button("Settings", |ui| {
-                    ui.checkbox(&mut self.logging_window, "Toggle log window");
+                    if !self.isweb {
+                        ui.checkbox(&mut self.logging_window, "Toggle log window");
+                    };
                 });
-                egui::widgets::global_theme_preference_buttons(ui);
             });
         });
 
@@ -130,7 +139,7 @@ impl eframe::App for App {
             ));
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                crate::app::powered_by_egui_and_eframe(ui);
+                powered_by_egui_and_eframe(ui);
                 egui::warn_if_debug_build(ui);
             });
         });

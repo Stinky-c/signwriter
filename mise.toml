@@ -13,3 +13,7 @@ run = "cargo build --release"
 [tasks.serve]
 description = "Serve using trunk"
 run = "trunk serve"
+
+[tasks.check]
+description = "Runs the included script to check all builds"
+file = "./check.sh"

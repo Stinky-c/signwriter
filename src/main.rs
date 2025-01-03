@@ -4,8 +4,11 @@
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
+    use tokio::runtime::Runtime;
     // env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     egui_logger::builder().init().unwrap();
+    let rt = Runtime::new().expect("Could not initialize tokio runtime");
+    let _enter = rt.enter();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
