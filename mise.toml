@@ -1,0 +1,15 @@
+[tasks.dev]
+description = "Cargo run"
+run = "cargo run"
+
+[tasks.build]
+description = "Cargo build dev"
+run = "cargo build"
+
+[tasks.release]
+description = "Cargo build release"
+run = "cargo build --release"
+
+[tasks.serve]
+description = "Serve using trunk"
+run = "trunk serve"

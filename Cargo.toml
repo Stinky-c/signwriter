@@ -1,9 +1,9 @@
 [package]
-name = "eframe_template"
+name = "caddyapp"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Bucky <60587749+Stinky-c@users.noreply.github.com>"]
 edition = "2021"
-include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = ["LICENSE", "**/*.rs", "Cargo.toml"]
 rust-version = "1.81"
 
 [package.metadata.docs.rs]
