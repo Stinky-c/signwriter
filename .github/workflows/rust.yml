@@ -107,10 +107,6 @@ jobs:
             cross: true
 
           - os: ubuntu-latest
-            TARGET: armv7-unknown-linux-gnueabihf
-            cross: true
-
-          - os: ubuntu-latest
             TARGET: x86_64-unknown-linux-gnu
 
           - os: windows-latest
@@ -118,14 +114,17 @@ jobs:
             EXTENSION: .exe
 
     steps:
-      - name: Install cross
+      - uses: taiki-e/install-action@v2
+        if: matrix.cross
+        with:
+          tool: cross@0.2.5
         # Github doesnt have runners with exotic architectures (eg. arm64/aarch64 on anything but macos).
         # Thus we use cross.
         # It's necessary to use an up-to-date cross from the git repository to avoid glibc problems on linux
         # Ref: https://github.com/cross-rs/cross/issues/1510
-        if: matrix.cross
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross --rev 1b8cf50d20180c1a394099e608141480f934b7f7
+#        if: matrix.cross
+#        run: |
+#          cargo install cross --git https://github.com/cross-rs/cross --rev 1b8cf50d20180c1a394099e608141480f934b7f7
 
       - name: Building ${{ matrix.TARGET }}
         run: echo "${{ matrix.TARGET }}"
