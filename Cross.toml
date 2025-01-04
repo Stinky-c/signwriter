@@ -1,0 +1,10 @@
+# edge is up to date, stable in 2 years old...
+# https://github.com/lstrojny/prometheus-weathermen/blob/4795eceb69254204303ed29967a34cba1e98d87c/Cross.toml
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+
+[target.armv7-unknown-linux-gnueabihf]
+image = "ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf:edge"

@@ -8,7 +8,7 @@ rust-version = "1.81"
 
 [package.metadata.docs.rs]
 all-features = true
-targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu","wasm32-unknown-unknown"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "wasm32-unknown-unknown"]
 
 [dependencies]
 egui = "0.30"
@@ -19,17 +19,17 @@ eframe = { version = "0.30", default-features = false, features = [
     "persistence", # Enable restoring app state when restarting the app.
     "wayland", # To support Linux (and CI)
 ] }
-log = "0.4"
-
-serde = { version = "1", features = ["derive"] }
+log = "0.4.22"
+serde = { version = "1.0.217", features = ["derive"] }
 egui_logger = "0.6.2"
 poll-promise = "0.3.0"
-reqwest = { version = "0.12.12", features = ["json"] }
-futures = "0.3.30"
+# reqwest default used hyper-tls which depended on openssl-sys
+reqwest = { version = "0.12.12", default-features = false, features = ["http2", "json", "rustls-tls"] }
+futures = "0.3.31"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.11"
+env_logger = "0.11.6"
 reqwest-cross = { version = "0.4.2", features = ["native-tokio"] }
 tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
 
@@ -37,8 +37,8 @@ tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 poll-promise = { version = "0.3.0", features = ["web"] }
-wasm-bindgen-futures = "0.4"
-web-sys = "0.3.70"           # to access the DOM (to hide the loading text)
+wasm-bindgen-futures = "0.4.49"
+web-sys = "0.3.76"           # to access the DOM (to hide the loading text)
 reqwest-cross = { version = "0.4.2", default-features = false, features = ["web-sys"] }
 
 
