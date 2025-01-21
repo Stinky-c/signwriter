@@ -34,7 +34,6 @@ impl Default for App {
             edit_json: false,
             http_connection: Some(Arc::new(reqwest::Client::new())),
             // http_result: None,
-            // caddy_body: None,
             body: Default::default(),
             isweb: cfg!(target_arch = "wasm32"),
         }
@@ -118,7 +117,7 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            ui.heading("Caddyapp");
+            ui.heading("Signwriter");
 
             ui.horizontal(|ui| {
                 ui.label("Write something: ");

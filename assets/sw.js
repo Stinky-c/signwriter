@@ -1,9 +1,9 @@
-var cacheName = 'egui-template-pwa';
+var cacheName = 'signwriter-pwa';
 var filesToCache = [
   './',
   './index.html',
-  './caddyapp.js',
-  './caddyapp_bg.wasm',
+  './signwriter.js',
+  './signwriter_bg.wasm',
 ];
 
 /* Start the service worker and cache all of the app's content */

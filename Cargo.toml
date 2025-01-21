@@ -1,5 +1,5 @@
 [package]
-name = "caddyapp"
+name = "signwriter"
 version = "0.1.0"
 authors = ["Bucky <60587749+Stinky-c@users.noreply.github.com>"]
 edition = "2021"
@@ -21,6 +21,7 @@ eframe = { version = "0.30", default-features = false, features = [
 ] }
 log = "0.4.22"
 serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0"
 egui_logger = "0.6.2"
 poll-promise = "0.3.0"
 # reqwest default used hyper-tls which depended on openssl-sys

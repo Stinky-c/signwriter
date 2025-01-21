@@ -1,6 +1,6 @@
 {
-  "name": "Caddyapp PWA",
-  "short_name": "caddyapp-pwa",
+  "name": "Signwriter PWA",
+  "short_name": "signwriter-pwa",
   "icons": [
     {
       "src": "./assets/icon-256.png",

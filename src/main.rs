@@ -22,9 +22,9 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Caddyapp",
+        "Signwriter",
         native_options,
-        Box::new(|cc| Ok(Box::new(caddyapp::App::new(cc)))),
+        Box::new(|cc| Ok(Box::new(signwriter::App::new(cc)))),
     )
 }
 
@@ -54,7 +54,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(caddyapp::App::new(cc)))),
+                Box::new(|cc| Ok(Box::new(signwriter::App::new(cc)))),
             )
             .await;
 
