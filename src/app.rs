@@ -1,8 +1,9 @@
+use crate::proto::*;
+use eyre::Result;
 use log::info;
 use poll_promise::Promise;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
@@ -17,12 +18,22 @@ pub struct App {
     edit_json: bool,
     #[serde(skip)]
     http_connection: Option<Arc<reqwest::Client>>,
+    #[serde(skip)]
+    grpc_connection: Option<Arc<EtcdClient>>,
+    #[serde(skip)]
+    grpc_promise: Option<Promise<Result<()>>>,
+    #[serde(skip)]
+    client: Arc<Mutex<Option<EtcdClient>>>,
 
     #[serde(skip)]
     body: Option<Promise<String>>,
     // body: Option<Receiver<String>>,
     #[serde(skip)]
     isweb: bool,
+    // #[serde(skip)]
+    // container: Container,
+    #[serde(skip)]
+    grpc_addr: String,
 }
 
 impl Default for App {
@@ -33,9 +44,13 @@ impl Default for App {
             logging_window: false,
             edit_json: false,
             http_connection: Some(Arc::new(reqwest::Client::new())),
+            grpc_connection: None,
+            grpc_promise: None,
             // http_result: None,
             body: Default::default(),
             isweb: cfg!(target_arch = "wasm32"),
+            grpc_addr: "http://localhost:2379".to_string(),
+            client: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -46,9 +61,10 @@ impl App {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
+            // Linux: /home/UserName/.local/share/APP_ID
+            // macOS: /Users/UserName/Library/Application Support/APP_ID
+            // Windows: C:\Users\UserName\AppData\Roaming\APP_ID\data
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
 
@@ -62,6 +78,41 @@ impl eframe::App for App {
         if !self.isweb && self.logging_window {
             egui::Window::new("Logs").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
+
+        egui::Window::new("Grpc connection").show(ctx, |ui| {
+            ui.label(&self.grpc_addr);
+            if ui.button("Connect").clicked() {
+                let (sender, promise) = Promise::new();
+
+                // clone Arc, this is grabbing a reference
+                let client_lock = self.client.clone();
+                let addr = self.grpc_addr.clone();
+                tokio::task::spawn(async move {
+                    let mut client = EtcdClient::new(addr.clone());
+                    client.connect().await.expect("TODO: panic message");
+                    client_lock.lock().unwrap().replace(client);
+                    info!("Connected to {}", addr);
+                    sender.send(Ok(()));
+                });
+                self.grpc_promise = Some(promise);
+            }
+
+            if let Some(promise) = &self.grpc_promise {
+                if let Some(v) = promise.ready() {
+                    match v {
+                        Ok(_) => {
+                            ui.label("Connected!");
+                        }
+                        Err(_) => {
+                            ui.label("Failed to connect");
+                        }
+                    }
+                } else {
+                    // Connect dispatched
+                    ui.spinner();
+                }
+            }
+        });
 
         egui::Window::new("HTTP").show(ctx, |ui| {
             if ui.button("Refresh").clicked() {
@@ -94,9 +145,9 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::widgets::global_theme_preference_switch(ui);
 
             egui::menu::bar(ui, |ui| {
+                egui::widgets::global_theme_preference_switch(ui);
                 // NOTE: no File->Quit on web pages!
                 if !self.isweb {
                     ui.menu_button("File", |ui| {
@@ -104,7 +155,6 @@ impl eframe::App for App {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
-                    ui.add_space(16.0);
                 }
                 ui.menu_button("Settings", |ui| {
                     if !self.isweb {

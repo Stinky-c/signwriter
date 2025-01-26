@@ -1,3 +1,6 @@
+[tools]
+etcd = "latest"
+
 [tasks.dev]
 description = "Cargo run"
 run = "cargo run"
