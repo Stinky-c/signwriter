@@ -3,10 +3,7 @@ use crate::thread;
 use eyre::{eyre, Result};
 use log::info;
 use poll_promise::Promise;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use tonic::codegen::http::uri::InvalidUri;
-use tonic::transport::Uri;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -22,8 +19,6 @@ pub struct App {
     grpc_addr: String,
     edit_json: bool,
 
-    #[serde(skip)]
-    http_connection: Option<Arc<reqwest::Client>>,
     #[serde(skip)]
     grpc_promise: Option<Promise<Result<()>>>,
     #[serde(skip)]
@@ -43,7 +38,6 @@ impl Default for App {
             value: 2.7,
             logging_window: false,
             edit_json: false,
-            http_connection: Some(Arc::new(reqwest::Client::new())),
             grpc_promise: None,
             body: Default::default(),
             isweb: cfg!(target_arch = "wasm32"),
@@ -131,38 +125,6 @@ impl eframe::App for App {
                 }
             }
         });
-
-        /*
-        egui::Window::new("HTTP").show(ctx, |ui| {
-            if ui.button("Refresh").clicked() {
-                let request = self
-                    .http_connection
-                    .as_ref()
-                    .unwrap()
-                    .get("https://httpbin.org/json");
-                // self.body = crate::http::try_http::<String>(request, move |res| async {
-                //     res.text().await.unwrap()
-                // });
-
-                let (sender, promise) = Promise::new();
-                reqwest_cross::fetch(request, move |x| async {
-                    let v = x.unwrap().text().await.unwrap();
-                    sender.send(v)
-                });
-                self.body = Some(promise);
-            }
-            // ui.checkbox(&mut self.edit_json, "Enable editing");
-
-            // Clean this somehow, and make sure `ui.code_editor` can borrow mutably (might need to break into a different var)
-            if let Some(promise) = &self.body {
-                if let Some(v) = promise.ready() {
-                    ui.add_enabled_ui(self.edit_json, |ui| ui.code_editor(&mut v.clone()));
-                } else {
-                    ui.spinner();
-                }
-            }
-        });
-         */
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {

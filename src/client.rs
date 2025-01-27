@@ -1,5 +1,8 @@
-use crate::proto::*;
+#![allow(dead_code)] // TODO: remove
+#![allow(unused)]
+
 use crate::proto::etcdv3::kv_client::KvClient;
+use crate::proto::*;
 use cfg_if::cfg_if;
 use eyre::{eyre, Result};
 /*
@@ -23,18 +26,13 @@ cfg_if! {
         type GrpcChannel = tonic::transport::Channel;
     }
     else {
-        panic!("Unexpected panic, bad build target. somehow.")
+        panic!("Unexpected panic, bad build target. somehow.");
     }
 }
-
-
-
 
 // pub mod membership {
 //     tonic::include_proto!("membership");
 // }
-
-
 
 pub struct EtcdClient {
     /// Built on `Self.connect`

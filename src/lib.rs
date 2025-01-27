@@ -2,6 +2,7 @@
 
 mod app;
 mod client;
+#[allow(clippy::all)] // Disable Clippy on auto-generated code
 mod proto;
 mod thread;
 

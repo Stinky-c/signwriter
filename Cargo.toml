@@ -21,12 +21,8 @@ eframe = { version = "0.30", default-features = false, features = [
 ] }
 log = "0.4.22"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.137"
 egui_logger = "0.6.2"
 poll-promise = "0.3.0"
-# reqwest default used hyper-tls which depended on openssl-sys
-reqwest = { version = "0.12.12", default-features = false, features = ["http2", "json", "rustls-tls"] }
-futures = "0.3.31"
 prost = "0.13.4"
 eyre = "0.6.12"
 cfg-if = "1.0.0"
@@ -34,7 +30,6 @@ cfg-if = "1.0.0"
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.6"
-reqwest-cross = { version = "0.4.2", features = ["native-tokio"] }
 tonic = { version = "0.12.3", features = ["prost", "codegen", "tls", "channel"], default-features = false }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "sync", "macros", "io-util"], default-features = false }
 
@@ -46,10 +41,9 @@ wasm-bindgen-futures = "0.4.49"
 web-sys = "0.3.76"
 tonic = { version = "0.12.3", features = ["prost", "codegen"], default-features = false }
 tonic-web-wasm-client = "0.6.0"
-reqwest-cross = { version = "0.4.2", default-features = false, features = ["web-sys"] }
 
 [build-dependencies]
-tonic-build = { version = "0.12.3", default-features = false, features = ["prost"] }
+tonic-build = { version = "0.12.3", default-features = false, features = ["prost", "cleanup-markdown"] }
 
 
 [profile.release]
