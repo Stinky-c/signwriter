@@ -1,8 +1,12 @@
-use crate::proto::*;
-use eyre::Result;
+use crate::client::*;
+use crate::thread;
+use eyre::{eyre, Result};
 use log::info;
 use poll_promise::Promise;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use tonic::codegen::http::uri::InvalidUri;
+use tonic::transport::Uri;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -15,11 +19,11 @@ pub struct App {
     // Enables the separate logging window
     // #[serde(skip)]
     logging_window: bool,
+    grpc_addr: String,
     edit_json: bool,
+
     #[serde(skip)]
     http_connection: Option<Arc<reqwest::Client>>,
-    #[serde(skip)]
-    grpc_connection: Option<Arc<EtcdClient>>,
     #[serde(skip)]
     grpc_promise: Option<Promise<Result<()>>>,
     #[serde(skip)]
@@ -30,10 +34,6 @@ pub struct App {
     // body: Option<Receiver<String>>,
     #[serde(skip)]
     isweb: bool,
-    // #[serde(skip)]
-    // container: Container,
-    #[serde(skip)]
-    grpc_addr: String,
 }
 
 impl Default for App {
@@ -44,9 +44,7 @@ impl Default for App {
             logging_window: false,
             edit_json: false,
             http_connection: Some(Arc::new(reqwest::Client::new())),
-            grpc_connection: None,
             grpc_promise: None,
-            // http_result: None,
             body: Default::default(),
             isweb: cfg!(target_arch = "wasm32"),
             grpc_addr: "http://localhost:2379".to_string(),
@@ -80,18 +78,37 @@ impl eframe::App for App {
         }
 
         egui::Window::new("Grpc connection").show(ctx, |ui| {
-            ui.label(&self.grpc_addr);
+            ui.label("GRPC server address");
+            ui.text_edit_singleline(&mut self.grpc_addr);
             if ui.button("Connect").clicked() {
+                // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
-
-                // clone Arc, this is grabbing a reference
-                let client_lock = self.client.clone();
+                let client_lock = self.client.clone(); // Grab a ref to client lock
                 let addr = self.grpc_addr.clone();
-                tokio::task::spawn(async move {
-                    let mut client = EtcdClient::new(addr.clone());
-                    client.connect().await.expect("TODO: panic message");
-                    client_lock.lock().unwrap().replace(client);
-                    info!("Connected to {}", addr);
+                thread::spawn_thread(async move {
+                    // Do the uri checking here, EtcdClient::connect is a result because of that
+                    // let uri = match Uri::from_str(&addr) {
+                    //     Ok(_) => {}
+                    //     Err(_) => {}
+                    // };
+
+                    let client = match EtcdClient::connect(addr).await {
+                        Ok(client) => client,
+                        Err(_) => {
+                            sender.send(Err(eyre!("Could not connect to Etcd.")));
+                            return;
+                        }
+                    };
+
+                    let mut lock = match client_lock.lock() {
+                        Ok(lock) => lock,
+                        Err(_) => {
+                            sender.send(Err(eyre!("Could not grab lock.")));
+                            return;
+                        }
+                    };
+                    lock.replace(client);
+                    info!("Connected to Etcd.");
                     sender.send(Ok(()));
                 });
                 self.grpc_promise = Some(promise);
@@ -103,8 +120,9 @@ impl eframe::App for App {
                         Ok(_) => {
                             ui.label("Connected!");
                         }
-                        Err(_) => {
+                        Err(e) => {
                             ui.label("Failed to connect");
+                            ui.label(format!("{}", e));
                         }
                     }
                 } else {
@@ -114,6 +132,7 @@ impl eframe::App for App {
             }
         });
 
+        /*
         egui::Window::new("HTTP").show(ctx, |ui| {
             if ui.button("Refresh").clicked() {
                 let request = self
@@ -143,9 +162,9 @@ impl eframe::App for App {
                 }
             }
         });
+         */
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-
             egui::menu::bar(ui, |ui| {
                 egui::widgets::global_theme_preference_switch(ui);
                 // NOTE: no File->Quit on web pages!

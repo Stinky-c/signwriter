@@ -1,14 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-// When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> eframe::Result {
-    use tokio::runtime::Runtime;
-    // env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+#[tokio::main]
+async fn main() -> eframe::Result {
     egui_logger::builder().init().unwrap();
-    let rt = Runtime::new().expect("Could not initialize tokio runtime");
-    let _enter = rt.enter();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -21,14 +17,15 @@ fn main() -> eframe::Result {
             ),
         ..Default::default()
     };
+    // rt.block_on(async move {
     eframe::run_native(
         "Signwriter",
         native_options,
         Box::new(|cc| Ok(Box::new(signwriter::App::new(cc)))),
     )
+    // })
 }
 
-// When compiling to web using trunk:
 #[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast as _;

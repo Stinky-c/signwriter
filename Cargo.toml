@@ -35,8 +35,9 @@ cfg-if = "1.0.0"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.6"
 reqwest-cross = { version = "0.4.2", features = ["native-tokio"] }
-tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
-tonic = { version = "0.12.3", features = ["prost", "codegen", "tls", "transport"], default-features = false }
+tonic = { version = "0.12.3", features = ["prost", "codegen", "tls", "channel"], default-features = false }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "sync", "macros", "io-util"], default-features = false }
+
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -48,7 +49,7 @@ tonic-web-wasm-client = "0.6.0"
 reqwest-cross = { version = "0.4.2", default-features = false, features = ["web-sys"] }
 
 [build-dependencies]
-tonic-build = "0.12.3"
+tonic-build = { version = "0.12.3", default-features = false, features = ["prost"] }
 
 
 [profile.release]
@@ -57,14 +58,3 @@ opt-level = 2 # fast and small wasm
 # Optimize all dependencies even in debug builds:
 [profile.dev.package."*"]
 opt-level = 2
-
-
-[patch.crates-io]
-
-# If you want to use the bleeding edge version of egui and eframe:
-# egui = { git = "https://github.com/emilk/egui", branch = "master" }
-# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
-
-# If you fork https://github.com/emilk/egui you can test with:
-# egui = { path = "../egui/crates/egui" }
-# eframe = { path = "../egui/crates/eframe" }
