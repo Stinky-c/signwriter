@@ -13,8 +13,7 @@ pub struct App {
     #[serde(skip)] // This how you opt out of serialization of a field
     value: f32,
 
-    // Enables the separate logging window
-    // #[serde(skip)]
+    /// Enables the separate logging window
     logging_window: bool,
     grpc_addr: String,
     edit_json: bool,
@@ -71,8 +70,8 @@ impl eframe::App for App {
             egui::Window::new("Log").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
 
-        egui::Window::new("Grpc connection").show(ctx, |ui| {
-            ui.label("GRPC server address");
+        egui::Window::new("gRPC Connection").show(ctx, |ui| {
+            ui.label("Etcd server address");
             ui.text_edit_singleline(&mut self.grpc_addr);
             if ui.button("Connect").clicked() {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
@@ -173,6 +172,9 @@ impl eframe::App for App {
     /// Called by the framework to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+    fn auto_save_interval(&self) -> Duration {
+        Duration::from_secs(30)
     }
 }
 

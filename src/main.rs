@@ -1,6 +1,8 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use eframe::HardwareAcceleration;
+
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> eframe::Result {
@@ -15,15 +17,15 @@ async fn main() -> eframe::Result {
                 eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
                     .expect("Failed to load icon"),
             ),
+        hardware_acceleration: HardwareAcceleration::Preferred,
+        vsync: true,
         ..Default::default()
     };
-    // rt.block_on(async move {
     eframe::run_native(
         "Signwriter",
         native_options,
         Box::new(|cc| Ok(Box::new(signwriter::App::new(cc)))),
     )
-    // })
 }
 
 #[cfg(target_arch = "wasm32")]
