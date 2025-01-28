@@ -1055,6 +1055,7 @@ checksum = "5666f8d25236293c966fbb3635eac18b04ad1914e3bab55bc7d44b9980cafcac"
 dependencies = [
  "ab_glyph",
  "ahash",
+ "backtrace",
  "bytemuck",
  "ecolor",
  "emath",

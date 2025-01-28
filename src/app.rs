@@ -4,6 +4,7 @@ use eyre::{eyre, Result};
 use log::{error, info};
 use poll_promise::Promise;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -71,8 +72,10 @@ impl eframe::App for App {
         }
 
         egui::Window::new("gRPC Connection").show(ctx, |ui| {
-            ui.label("Etcd server address");
-            ui.text_edit_singleline(&mut self.grpc_addr);
+            ui.horizontal(|ui| {
+                ui.label("Address");
+                ui.text_edit_singleline(&mut self.grpc_addr);
+            });
             if ui.button("Connect").clicked() {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
