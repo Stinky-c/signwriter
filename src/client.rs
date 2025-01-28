@@ -5,6 +5,12 @@ use crate::proto::etcdv3::kv_client::KvClient;
 use crate::proto::*;
 use cfg_if::cfg_if;
 use eyre::{eyre, Result};
+
+#[cfg(not(target_arch = "wasm32"))]
+use tonic::transport::Channel as GrpcChannel;
+#[cfg(target_arch = "wasm32")]
+use tonic_web_wasm_client::Client as GrpcChannel;
+use url::{ParseError, Url};
 /*
 Impl details:
 scaffold structure of traefik config using serde.
@@ -17,79 +23,52 @@ After edit, diff and push changes?
 
  */
 
-// this the best way to do this?
-cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-        type GrpcChannel = tonic_web_wasm_client::Client;
-    }
-    else if #[cfg(not(target_arch = "wasm32"))] {
-        type GrpcChannel = tonic::transport::Channel;
-    }
-    else {
-        panic!("Unexpected panic, bad build target. somehow.");
-    }
-}
-
-// pub mod membership {
-//     tonic::include_proto!("membership");
-// }
-
 pub struct EtcdClient {
     /// Built on `Self.connect`
-    client: Option<KvClient<GrpcChannel>>,
+    client: KvClient<GrpcChannel>,
     /// Define on init
     addr: String,
-    /// Possibly defined on init - Not supported
+    /// Auth packet
     auth: Option<etcdv3::AuthenticateRequest>,
 }
 
 impl EtcdClient {
-    pub fn new(addr: String) -> Self {
-        Self {
-            client: None,
+    pub fn new(addr: String) -> Result<Self> {
+        Self::_valid_url(addr.clone())?;
+        let client = Self::_build_channel(addr.clone())?;
+        Ok(Self {
+            client,
             addr,
             auth: None,
-        }
+        })
     }
-    fn new_with_auth(addr: String, auth: etcdv3::AuthenticateRequest) -> Self {
-        Self {
-            client: None,
-            addr,
-            auth: Some(auth),
-        }
+    pub fn new_with_auth(addr: String, auth: etcdv3::AuthenticateRequest) -> Result<Self> {
+        todo!("Auth is coming at a later time.")
     }
-
-    fn _connected(&self) -> Result<()> {
-        match &self.client {
-            Some(_) => Ok(()),
-            None => Err(eyre!("Client not connected")),
+    fn _valid_url(url: String) -> Result<()> {
+        match Url::parse(&url) {
+            Ok(url) => Ok(()),
+            Err(e) => Err(eyre!("Invalid URL: {}", e)),
         }
     }
 
-    /// Connects `KVClient`
-    pub async fn connect(addr: String) -> Result<Self> {
-        let mut s = Self::new(addr.clone());
+    fn _build_channel(addr: String) -> Result<KvClient<GrpcChannel>> {
         cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
-                let channel = tonic_web_wasm_client::Client::new(addr); // TODO: add secure support
-                let client = KvClient::new(channel); // This might not init the connection, calling connect is async whereas this is sync
-                s.client = Some(client);
+                let channel = GrpcChannel::new(addr);
+                Ok(KvClient::new(channel))
             }
             else if #[cfg(not(target_arch = "wasm32"))] {
-                let c = tonic::transport::Channel::builder(s.addr.parse()?).connect_lazy();
-                let client = KvClient::new(c);
-                s.client = Some(client);
-            }
-            else {
-                panic!("Unexpected panic, cannot build client")
+                let channel = GrpcChannel::builder(addr.parse()?).connect_lazy();
+                Ok(KvClient::new(channel))
             }
         }
-        Ok(s)
+    }
+    fn _build_auth_channel(addr: String) -> Result<KvClient<GrpcChannel>> {
+        todo!("Auth is coming at a later time.")
     }
 
     pub async fn put(&mut self, key: String, value: String) -> Result<()> {
-        self._connected()?;
-
         let req = tonic::Request::new(etcdv3::PutRequest {
             key: key.into_bytes(),
             value: value.into_bytes(),
@@ -98,13 +77,11 @@ impl EtcdClient {
             ignore_value: false,
             ignore_lease: false,
         });
-        self.client.as_mut().unwrap().put(req).await?.into_inner();
+        self.client.put(req).await?;
         Ok(())
     }
 
     pub async fn get(&mut self, key: String) -> Result<Option<String>> {
-        self._connected()?;
-
         let req = tonic::Request::new(etcdv3::RangeRequest {
             key: key.clone().into_bytes(),
             range_end: key.into_bytes(),
@@ -121,12 +98,10 @@ impl EtcdClient {
             max_create_revision: 0,
         });
 
-        let _v = self.client.as_mut().unwrap().range(req).await?.into_inner();
+        let _v = self.client.range(req).await?.into_inner();
         Ok(None)
     }
     pub async fn get_all(&mut self) -> Result<()> {
-        self._connected()?;
-
         let key_bytes = "traefik".to_string().into_bytes();
         let end_bytes = get_prefix(key_bytes.clone());
 

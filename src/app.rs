@@ -1,7 +1,7 @@
 use crate::client::*;
 use crate::thread;
 use eyre::{eyre, Result};
-use log::info;
+use log::{error, info};
 use poll_promise::Promise;
 use std::sync::{Arc, Mutex};
 
@@ -67,8 +67,8 @@ impl App {
 impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if !self.isweb && self.logging_window {
-            egui::Window::new("Logs").show(ctx, |ui| egui_logger::logger_ui().show(ui));
+        if self.logging_window {
+            egui::Window::new("Log").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
 
         egui::Window::new("Grpc connection").show(ctx, |ui| {
@@ -77,19 +77,15 @@ impl eframe::App for App {
             if ui.button("Connect").clicked() {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
-                let client_lock = self.client.clone(); // Grab a ref to client lock
-                let addr = self.grpc_addr.clone();
+                let client_lock = self.client.clone(); // Grab a ref to the client lock
+                let addr = self.grpc_addr.clone(); // Clone addr to move into thread
                 thread::spawn_thread(async move {
-                    // Do the uri checking here, EtcdClient::connect is a result because of that
-                    // let uri = match Uri::from_str(&addr) {
-                    //     Ok(_) => {}
-                    //     Err(_) => {}
-                    // };
-
-                    let client = match EtcdClient::connect(addr).await {
-                        Ok(client) => client,
-                        Err(_) => {
-                            sender.send(Err(eyre!("Could not connect to Etcd.")));
+                    let client = match EtcdClient::new(addr.clone()) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            let s = format!("Failed to connect: {}", e);
+                            error!("{}", s);
+                            sender.send(Err(eyre!(s)));
                             return;
                         }
                     };
@@ -97,12 +93,13 @@ impl eframe::App for App {
                     let mut lock = match client_lock.lock() {
                         Ok(lock) => lock,
                         Err(_) => {
-                            sender.send(Err(eyre!("Could not grab lock.")));
+                            error!("Failed to acquire client lock");
+                            sender.send(Err(eyre!("Failed to acquire lock")));
                             return;
                         }
                     };
                     lock.replace(client);
-                    info!("Connected to Etcd.");
+                    info!("Connected at: {}", addr);
                     sender.send(Ok(()));
                 });
                 self.grpc_promise = Some(promise);
@@ -138,9 +135,7 @@ impl eframe::App for App {
                     });
                 }
                 ui.menu_button("Settings", |ui| {
-                    if !self.isweb {
-                        ui.checkbox(&mut self.logging_window, "Toggle log window");
-                    };
+                    ui.checkbox(&mut self.logging_window, "Toggle log window");
                 });
             });
         });
