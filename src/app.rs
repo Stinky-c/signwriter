@@ -1,21 +1,23 @@
 use crate::client::*;
+use crate::components;
+use crate::models::prelude::{Router, Service};
 use crate::thread;
 use eyre::{eyre, Result};
 use log::{error, info};
 use poll_promise::Promise;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
     // Example stuff:
-    label: String,
+    pub(crate) label: String,
     #[serde(skip)] // This how you opt out of serialization of a field
-    value: f32,
+    pub(crate) value: f32,
 
     /// Enables the separate logging window
-    logging_window: bool,
+    pub(crate) logging_window: bool,
     grpc_addr: String,
     edit_json: bool,
 
@@ -23,12 +25,24 @@ pub struct App {
     grpc_promise: Option<Promise<Result<()>>>,
     #[serde(skip)]
     client: Arc<Mutex<Option<EtcdClient>>>,
+    #[serde(skip)]
+    client2: Arc<RwLock<Option<EtcdClient>>>,
 
     #[serde(skip)]
     body: Option<Promise<String>>,
     // body: Option<Receiver<String>>,
     #[serde(skip)]
-    isweb: bool,
+    pub(crate) isweb: bool,
+
+    #[serde(skip)]
+    pub(crate) routers: Vec<Router>,
+    #[serde(skip)]
+    pub(crate) services: Vec<Service>,
+
+    #[serde(skip)]
+    pub(crate) new_service: Service,
+    #[serde(skip)]
+    pub(crate) new_router: Router,
 }
 
 impl Default for App {
@@ -43,6 +57,11 @@ impl Default for App {
             isweb: cfg!(target_arch = "wasm32"),
             grpc_addr: "http://localhost:2379".to_string(),
             client: Arc::new(Mutex::new(None)),
+            client2: Arc::new(RwLock::new(None)),
+            services: Vec::new(),
+            new_service: Service::default(),
+            routers: Vec::new(),
+            new_router: Router::default(),
         }
     }
 }
@@ -80,18 +99,36 @@ impl eframe::App for App {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
                 let client_lock = self.client.clone(); // Grab a ref to the client lock
+                let c2 = self.client2.clone();
                 let addr = self.grpc_addr.clone(); // Clone addr to move into thread
                 thread::spawn_thread(async move {
                     let client = match EtcdClient::new(addr.clone()) {
-                        Ok(v) => v,
+                        Ok(c) => {
+                            info!("Connected at: {}", addr);
+                            c
+                        }
                         Err(e) => {
-                            let s = format!("Failed to connect: {}", e);
-                            error!("{}", s);
-                            sender.send(Err(eyre!(s)));
+                            let msg = format!("Failed to connect: {}", e);
+                            error!("{}", msg);
+                            sender.send(Err(eyre!(msg)));
                             return;
                         }
                     };
+                    match c2.write() {
+                        Ok(mut c) => {
+                            c.replace(client);
+                            sender.send(Ok(()));
+                            return;
+                        }
+                        Err(e) => {
+                            let msg = format!("Lock is poisoned. Please open a issue. {}", e);
+                            error!("{}", msg);
+                            sender.send(Err(eyre!(msg)));
+                            return;
+                        }
+                    }
 
+                    return;
                     let mut lock = match client_lock.lock() {
                         Ok(lock) => lock,
                         Err(_) => {
@@ -101,7 +138,6 @@ impl eframe::App for App {
                         }
                     };
                     lock.replace(client);
-                    info!("Connected at: {}", addr);
                     sender.send(Ok(()));
                 });
                 self.grpc_promise = Some(promise);
@@ -125,50 +161,14 @@ impl eframe::App for App {
             }
         });
 
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                egui::widgets::global_theme_preference_switch(ui);
-                // NOTE: no File->Quit on web pages!
-                if !self.isweb {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                }
-                ui.menu_button("Settings", |ui| {
-                    ui.checkbox(&mut self.logging_window, "Toggle log window");
-                });
-            });
+        egui::TopBottomPanel::top("top_panel")
+            .show(ctx, |ui| components::bar::top_panel(self, ctx, ui));
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            components::bar::bottom_panel(self, ctx, ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-
-            ui.heading("Signwriter");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                info!("increment");
-                self.value += 1.0;
-            }
-
-            ui.separator();
-
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
+            components::pane::central_pane(self, ctx, ui);
         });
     }
 
@@ -179,18 +179,4 @@ impl eframe::App for App {
     fn auto_save_interval(&self) -> Duration {
         Duration::from_secs(30)
     }
-}
-
-pub(crate) fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }

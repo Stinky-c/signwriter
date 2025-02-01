@@ -47,17 +47,22 @@ impl EtcdClient {
     }
     fn _valid_url(url: String) -> Result<()> {
         match Url::parse(&url) {
-            Ok(url) =>{
-                match url.scheme() { 
+            Ok(url) => {
+                match url.scheme() {
                     "http" | "https" => {}
-                    _ => return Err(eyre!("Unexpected Scheme. Expected http or https. Got: '{}'", url.scheme())),
+                    _ => {
+                        return Err(eyre!(
+                            "Unexpected Scheme. Expected http or https. Got: '{}'",
+                            url.scheme()
+                        ))
+                    }
                 }
-                match url.path() { 
+                match url.path() {
                     "/" => {}
                     _ => return Err(eyre!("Got unexpected path")),
                 }
                 Ok(())
-            },
+            }
             Err(e) => Err(eyre!("Invalid URL: {}", e)),
         }
     }
