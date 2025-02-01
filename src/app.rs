@@ -90,6 +90,10 @@ impl eframe::App for App {
             egui::Window::new("Log").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
 
+        if cfg!(debug_assertions) {
+            egui::Window::new("Memory").show(ctx, |ui| ctx.memory_ui(ui));
+        }
+
         egui::Window::new("gRPC Connection").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Address");
@@ -98,7 +102,6 @@ impl eframe::App for App {
             if ui.button("Connect").clicked() {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
-                let client_lock = self.client.clone(); // Grab a ref to the client lock
                 let c2 = self.client2.clone();
                 let addr = self.grpc_addr.clone(); // Clone addr to move into thread
                 thread::spawn_thread(async move {
@@ -118,27 +121,13 @@ impl eframe::App for App {
                         Ok(mut c) => {
                             c.replace(client);
                             sender.send(Ok(()));
-                            return;
                         }
                         Err(e) => {
                             let msg = format!("Lock is poisoned. Please open a issue. {}", e);
                             error!("{}", msg);
                             sender.send(Err(eyre!(msg)));
-                            return;
                         }
                     }
-
-                    return;
-                    let mut lock = match client_lock.lock() {
-                        Ok(lock) => lock,
-                        Err(_) => {
-                            error!("Failed to acquire client lock");
-                            sender.send(Err(eyre!("Failed to acquire lock")));
-                            return;
-                        }
-                    };
-                    lock.replace(client);
-                    sender.send(Ok(()));
                 });
                 self.grpc_promise = Some(promise);
             }
@@ -162,9 +151,9 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::top("top_panel")
-            .show(ctx, |ui| components::bar::top_panel(self, ctx, ui));
+            .show(ctx, |ui| components::panel::top_panel(self, ctx, ui));
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            components::bar::bottom_panel(self, ctx, ui);
+            components::panel::bottom_panel(self, ctx, ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

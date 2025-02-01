@@ -1,4 +1,3 @@
-mod entrypoint;
 mod router;
 mod service;
 

@@ -84,11 +84,7 @@ pub fn list_line(ui: &mut egui::Ui, str_list: Vec<String>) {
     }
 }
 
-pub fn edit_list(
-    ui: &mut egui::Ui,
-    label: impl Into<egui::WidgetText>,
-    str_list: &mut Vec<String>,
-) {
+pub fn edit_list(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, str_list: &mut [String]) {
     ui.label(label);
     for (index, value) in str_list.iter_mut().enumerate() {
         edit_field(ui, index.to_string(), value);

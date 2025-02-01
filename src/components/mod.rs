@@ -1,2 +1,2 @@
-pub mod bar;
 pub mod pane;
+pub mod panel;

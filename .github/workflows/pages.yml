@@ -19,13 +19,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: taiki-e/install-action@v2
         with:
           tool: trunk@0.21.5
+
       - name: Build
         # Environment $public_url resolves to the github project page.
         # If using a user/organization page, remove the `${{ github.event.repository.name }}` part.
@@ -36,6 +46,7 @@ jobs:
         run: trunk build --release --public-url $public_url
         env:
           public_url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:

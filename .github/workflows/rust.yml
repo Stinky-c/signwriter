@@ -37,6 +37,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{matrix.TARGET}}
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2
       - run: cargo check ${{matrix.flags}} --target ${{matrix.TARGET}}
 
@@ -45,8 +52,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2
+
       - run: cargo test --lib
 
   fmt:
@@ -54,10 +70,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2
+
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -65,10 +90,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: Swatinem/rust-cache@v2
+
       - run: cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all
 
   trunk:
@@ -76,14 +108,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.21.5
+
       - name: Build
-        run: ./trunk build
+        run: trunk build
 
   build:
     runs-on: ${{ matrix.os }}
@@ -133,13 +177,21 @@ jobs:
       - name: Building ${{ matrix.TARGET }}
         run: echo "${{ matrix.TARGET }}"
 
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.TARGET }}
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '29.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
           # this is required to avoid failures due to caching of artifacts for different architectures
           # The reason is the potential usage of cross.
@@ -147,12 +199,12 @@ jobs:
           # different architectures (and native) with cross on the generic ubuntu-latest.
           key: ${{ matrix.TARGET }}
 
-      - if: ${{ !matrix.cross }}
-        name: Cargo Build
+      - name: Cargo Build
+        if: ${{ !matrix.cross }}
         run: cargo build --verbose --release --target=${{ matrix.TARGET }}
 
-      - if: matrix.cross
-        name: Cross Build
+      - name: Cross Build
+        if: matrix.cross
         run: cross build --verbose --release --target=${{ matrix.TARGET }}
 
       - name: Rename
@@ -165,8 +217,8 @@ jobs:
 
       # this requires read-write permissions on the repo:
       # https://github.com/svenstaro/upload-release-action/issues/70
-      - uses: svenstaro/upload-release-action@v2
-        name: Upload binaries to release
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
         if: ${{ github.event_name == 'push' }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
