@@ -5,7 +5,7 @@ use crate::thread;
 use eyre::{eyre, Result};
 use log::{error, info};
 use poll_promise::Promise;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 #[derive(serde::Deserialize, serde::Serialize)]

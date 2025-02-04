@@ -45,6 +45,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: cargo check ${{matrix.flags}} --target ${{matrix.TARGET}}
 
   test:
@@ -62,6 +64,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - run: cargo test --lib
 
@@ -82,6 +86,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - run: cargo fmt --all -- --check
 
@@ -100,6 +106,8 @@ jobs:
           version: '29.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - run: cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy::all
 
@@ -121,6 +129,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - uses: taiki-e/install-action@v2
         with:
@@ -198,6 +208,7 @@ jobs:
           # The cache checks the rustc host which doesn't record us targeting
           # different architectures (and native) with cross on the generic ubuntu-latest.
           key: ${{ matrix.TARGET }}
+          cache-on-failure: true
 
       - name: Cargo Build
         if: ${{ !matrix.cross }}
