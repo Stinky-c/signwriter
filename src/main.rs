@@ -1,11 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::HardwareAcceleration;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> eframe::Result {
+    use eframe::HardwareAcceleration;
     egui_logger::builder().init().unwrap();
 
     let native_options = eframe::NativeOptions {

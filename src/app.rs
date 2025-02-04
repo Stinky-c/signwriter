@@ -18,22 +18,17 @@ pub struct App {
 
     /// Enables the separate logging window
     pub(crate) logging_window: bool,
+    pub(crate) memory_window: bool,
     grpc_addr: String,
     edit_json: bool,
 
     #[serde(skip)]
     grpc_promise: Option<Promise<Result<()>>>,
     #[serde(skip)]
-    client: Arc<Mutex<Option<EtcdClient>>>,
-    #[serde(skip)]
-    client2: Arc<RwLock<Option<EtcdClient>>>,
+    client: Arc<RwLock<Option<EtcdClient>>>,
 
     #[serde(skip)]
     body: Option<Promise<String>>,
-    // body: Option<Receiver<String>>,
-    #[serde(skip)]
-    pub(crate) isweb: bool,
-
     #[serde(skip)]
     pub(crate) routers: Vec<Router>,
     #[serde(skip)]
@@ -51,15 +46,20 @@ impl Default for App {
             label: "Hello World!".to_owned(),
             value: 2.7,
             logging_window: false,
+            memory_window: false,
             edit_json: false,
             grpc_promise: None,
             body: Default::default(),
-            isweb: cfg!(target_arch = "wasm32"),
             grpc_addr: "http://localhost:2379".to_string(),
-            client: Arc::new(Mutex::new(None)),
-            client2: Arc::new(RwLock::new(None)),
+            client: Arc::new(RwLock::new(None)),
             services: Vec::new(),
-            new_service: Service::default(),
+            new_service: Service {
+                service_name: "abc".to_string(),
+                urls: vec![
+                    "http://localhost:2378".to_string(),
+                    "http://localhost:2379".to_string(),
+                ],
+            },
             routers: Vec::new(),
             new_router: Router::default(),
         }
@@ -90,7 +90,7 @@ impl eframe::App for App {
             egui::Window::new("Log").show(ctx, |ui| egui_logger::logger_ui().show(ui));
         }
 
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && self.memory_window {
             egui::Window::new("Memory").show(ctx, |ui| ctx.memory_ui(ui));
         }
 
@@ -102,7 +102,7 @@ impl eframe::App for App {
             if ui.button("Connect").clicked() {
                 // TODO: make a wrapper around this. I will likely only use promises to show spinners
                 let (sender, promise) = Promise::new();
-                let c2 = self.client2.clone();
+                let c2 = self.client.clone();
                 let addr = self.grpc_addr.clone(); // Clone addr to move into thread
                 thread::spawn_thread(async move {
                     let client = match EtcdClient::new(addr.clone()) {
@@ -151,13 +151,13 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::top("top_panel")
-            .show(ctx, |ui| components::panel::top_panel(self, ctx, ui));
+            .show(ctx, |ui| components::panel::top_panel(self, ui));
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            components::panel::bottom_panel(self, ctx, ui);
+            components::panel::bottom_panel(self, ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            components::pane::central_pane(self, ctx, ui);
+            components::pane::central_pane(self, ui);
         });
     }
 

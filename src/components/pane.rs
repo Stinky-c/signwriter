@@ -1,26 +1,10 @@
 use crate::app;
-use crate::models::prelude::{Router, Service};
+use crate::widgets::list_container;
 use log::info;
-use std::fmt::format;
 
-pub fn central_pane(app: &mut app::App, ctx: &egui::Context, ui: &mut egui::Ui) {
+pub fn central_pane(app: &mut app::App, ui: &mut egui::Ui) {
     ui.heading("Signwriter");
 
-    ui.horizontal(|ui| {
-        ui.label("Write something: ");
-        ui.text_edit_singleline(&mut app.label);
-    });
-
-    ui.add(egui::Slider::new(&mut app.value, 0.0..=10.0).text("value"));
-    if ui.button("Increment").clicked() {
-        info!("increment");
-        app.value += 1.0;
-    }
-
-    ui.add(egui::github_link_file!(
-        "https://github.com/emilk/eframe_template/blob/main/",
-        "Source code."
-    ));
     // Routers
     ui.group(|ui| {
         ui.heading("Create New Router");
@@ -53,8 +37,9 @@ pub fn central_pane(app: &mut app::App, ctx: &egui::Context, ui: &mut egui::Ui) 
     ui.group(|ui| {
         ui.heading("Create New services");
         edit_field(ui, "Name", &mut app.new_service.service_name);
-        // TODO: new list, CRUD ops on list
-        edit_list(ui, "URLs", &mut app.new_service.urls);
+
+        list_container::ListContainer::new("Urls", &mut app.new_service.urls).show(ui);
+
         if ui.button("Create Service").clicked() {
             info!("Creating new service");
             let service = std::mem::take(&mut app.new_service);
@@ -76,17 +61,4 @@ pub fn edit_field(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, text: &
         ui.label(label);
         ui.text_edit_singleline(text);
     });
-}
-
-pub fn list_line(ui: &mut egui::Ui, str_list: Vec<String>) {
-    for (index, value) in str_list.iter().enumerate() {
-        ui.label(format!("{}: {}", index, value));
-    }
-}
-
-pub fn edit_list(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, str_list: &mut [String]) {
-    ui.label(label);
-    for (index, value) in str_list.iter_mut().enumerate() {
-        edit_field(ui, index.to_string(), value);
-    }
 }
